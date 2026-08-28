@@ -1,0 +1,76 @@
+.fixed-form {
+  container-type: inline-size;
+}
+
+.field-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  line-height: normal;
+}
+
+.document-field {
+  position: absolute;
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0.35cqw;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  color: #214b94;
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-weight: 400;
+  line-height: normal;
+  white-space: nowrap;
+  text-overflow: clip;
+  caret-color: #173f70;
+}
+
+.document-field:hover {
+  background: rgba(238, 247, 255, 0.2);
+}
+
+.document-field:focus,
+.document-field.selected {
+  background: rgba(255, 253, 230, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(44, 108, 165, 0.55);
+}
+
+.client-field {
+  direction: ltr !important;
+  unicode-bidi: normal !important;
+  writing-mode: horizontal-tb !important;
+  text-align: left !important;
+  padding: 0.28cqw 0.25cqw 0;
+  overflow: hidden;
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .paper-shell {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .fixed-form {
+    width: 700px;
+    min-width: 700px;
+    max-width: none;
+  }
+
+  .document-field {
+    touch-action: manipulation;
+  }
+}
