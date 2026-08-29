@@ -8,6 +8,8 @@ import { DOCUMENT_HEIGHT, DOCUMENT_WIDTH, FIELD_BY_ID, FIELD_DEFINITIONS, FieldD
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 const PDF_URL = "/pedido-plasnorte.pdf";
 const STORAGE_KEY = "plasnorte-edicao";
+const TABLE_TOP = 784;
+const TABLE_BOTTOM = 2061;
 type Values = Record<string, string>;
 type FieldStyle = { fontSize?: number; color?: string };
 type FieldStyles = Record<string, FieldStyle>;
@@ -42,6 +44,65 @@ function migrateLegacyBoxes(boxes: Array<{ text?: string; x?: number; y?: number
     if (field && !migrated[field.id]) migrated[field.id] = box.text;
   }
   return migrated;
+}
+
+function removeOnlyUnlistedProducts(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  const scaleX = canvas.width / DOCUMENT_WIDTH;
+  const scaleY = canvas.height / DOCUMENT_HEIGHT;
+  const rowHeight = (TABLE_BOTTOM - TABLE_TOP) / 36;
+  const columns = [[66, 532], [532, 710], [710, 891], [891, 978]];
+  const cells = [
+    [28, [0]], [29, [0, 1, 2, 3]], [30, [0, 1, 2, 3]],
+    [32, [0, 1]], [33, [0, 1, 2]], [34, [0, 1, 2]], [35, [0, 1, 2]],
+  ] as const;
+
+  for (const [row, columnIndexes] of cells) {
+    for (const columnIndex of columnIndexes) {
+      const [left, right] = columns[columnIndex];
+      // A área de leitura fica afastada das quatro bordas da célula, para que
+      // as linhas originais do PDF nunca sejam tocadas.
+      const x = Math.round((left + 2) * scaleX);
+      const y = Math.round((TABLE_TOP + row * rowHeight + 1) * scaleY);
+      const width = Math.round((right - left - 4) * scaleX);
+      const height = Math.round((rowHeight - 2) * scaleY);
+      context.fillStyle = "#ffffff";
+      context.fillRect(x, y, width, height);
+    }
+  }
+}
+
+function restoreOriginalTableDividers(canvas: HTMLCanvasElement, original: ImageData) {
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  const scaleX = canvas.width / DOCUMENT_WIDTH;
+  const scaleY = canvas.height / DOCUMENT_HEIGHT;
+  const rowHeight = (TABLE_BOTTOM - TABLE_TOP) / 36;
+  const top = Math.round((TABLE_TOP + rowHeight * 28) * scaleY);
+  const bottom = Math.round(TABLE_BOTTOM * scaleY);
+  for (let row = 28; row <= 36; row++) {
+    const y = Math.round((TABLE_TOP + row * rowHeight) * scaleY) - 1;
+    context.putImageData(original, 0, 0, 0, y, canvas.width, 3);
+  }
+  // As três divisórias que cruzam as células removidas; a faixa inclui toda a
+  // antialiasing original para não deixar interrupções no traço.
+  for (const position of [66, 532, 710, 891]) {
+    const x = Math.round(position * scaleX) - 4;
+    context.putImageData(original, 0, 0, x, top, 9, bottom - top);
+  }
+  // Pequena falha residual indicada na divisória do campo FARDO/QUANT.
+  const repairedX = Math.round(891 * scaleX) + 0.5;
+  context.save();
+  context.strokeStyle = "#64717a";
+  context.lineWidth = Math.max(1, scaleX * 1.5);
+  context.beginPath();
+  context.moveTo(repairedX, top);
+  context.lineTo(repairedX, bottom);
+  context.stroke();
+  context.restore();
 }
 
 export default function App() {
@@ -79,6 +140,9 @@ export default function App() {
       canvas.width = viewport.width * ratio; canvas.height = viewport.height * ratio;
       canvas.style.width = `${viewport.width}px`; canvas.style.height = `${viewport.height}px`;
       await page.render({ canvas, canvasContext: canvas.getContext("2d")!, viewport, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined, background: "#ffffff" }).promise;
+      const originalTable = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
+      removeOnlyUnlistedProducts(canvas);
+      restoreOriginalTableDividers(canvas, originalTable);
     })().catch(() => notify("Não foi possível abrir o PDF."));
   }, []);
 
@@ -135,7 +199,9 @@ export default function App() {
       for (const field of FIELD_DEFINITIONS) {
         const value = values[field.id]?.trim(); if (!value) continue;
         const fontSize = fittedFontSize(field, value, styles[field.id]?.fontSize);
-        context.font = `${fontSize * sx}px Arial, sans-serif`; context.fillStyle = styles[field.id]?.color ?? "#214b94";
+        const productField = field.row !== undefined;
+        context.font = `${productField ? "700" : "400"} ${fontSize * sx}px ${productField ? '"Arial Narrow", Arial, sans-serif' : "Arial, sans-serif"}`;
+        context.fillStyle = styles[field.id]?.color ?? (productField ? "#343b41" : "#214b94");
         context.textBaseline = "middle"; context.textAlign = field.align;
         const x = field.align === "right" ? (field.x + field.width - 5) * sx : field.align === "center" ? (field.x + field.width / 2) * sx : (field.x + 5) * sx;
         context.fillText(value, x, (field.y + field.height / 2) * sy, (field.width - 10) * sx);
@@ -164,7 +230,8 @@ export default function App() {
           {renderedFields.map((field) => {
             const value = values[field.id] ?? "";
             const fontSize = fittedFontSize(field, value, styles[field.id]?.fontSize);
-            return <input key={field.id} id={`field-${field.id}`} className={`document-field ${field.section === "client" ? "client-field" : ""} ${selected === field.id ? "selected" : ""}`} dir={field.section === "client" ? "ltr" : undefined} aria-label={field.label ?? field.id} inputMode={field.type === "text" ? "text" : "decimal"} maxLength={field.maxLength} value={value} onFocus={() => setSelected(field.id)} onChange={(event) => changeValue(field, event.target.value)} onBlur={() => blurField(field)} style={{ left: `${field.x / DOCUMENT_WIDTH * 100}%`, top: `${field.y / DOCUMENT_HEIGHT * 100}%`, width: `${field.width / DOCUMENT_WIDTH * 100}%`, height: `${field.height / DOCUMENT_HEIGHT * 100}%`, textAlign: field.align, fontSize: `${fontSize / DOCUMENT_WIDTH * 100}cqw`, color: styles[field.id]?.color ?? "#214b94" }} />;
+            const productField = field.row !== undefined;
+            return <input key={field.id} id={`field-${field.id}`} className={`document-field ${field.section === "client" ? "client-field" : ""} ${productField ? "product-field" : ""} ${productField && field.column === "descricao" ? "description-field" : ""} ${selected === field.id ? "selected" : ""}`} dir={field.section === "client" ? "ltr" : undefined} aria-label={field.label ?? field.id} inputMode={field.type === "text" ? "text" : "decimal"} maxLength={field.maxLength} value={value} onFocus={() => setSelected(field.id)} onChange={(event) => changeValue(field, event.target.value)} onBlur={() => blurField(field)} style={{ left: `${field.x / DOCUMENT_WIDTH * 100}%`, top: `${field.y / DOCUMENT_HEIGHT * 100}%`, width: `${field.width / DOCUMENT_WIDTH * 100}%`, height: `${field.height / DOCUMENT_HEIGHT * 100}%`, textAlign: field.align, fontSize: `${fontSize / DOCUMENT_WIDTH * 100}cqw`, color: styles[field.id]?.color ?? (productField ? "#343b41" : "#214b94") }} />;
           })}
         </div></div></div>
       </section>
