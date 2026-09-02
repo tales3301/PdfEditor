@@ -75,7 +75,7 @@ const productFields: FieldDefinition[] = Array.from(
       height: rowHeight - 4,
       type,
       align,
-      fontSize: 23,
+      fontSize: 27,
       maxLength,
       row,
       column,
@@ -86,6 +86,8 @@ const productFields: FieldDefinition[] = Array.from(
 const footerFields: FieldDefinition[] = [
   { id: "condicaoPagamento", label: "Condição de pagamento", x: 460, y: 2065, width: 670, height: 58, type: "text", align: "left", fontSize: 28, maxLength: 55 },
   { id: "totalGeral", label: "Total geral", x: 1283, y: 2065, width: 282, height: 58, type: "currency", align: "right", fontSize: 31, maxLength: 24 },
+  { id: "assinaturaVendedor", label: "Assinatura do vendedor", x: 115, y: 2152, width: 490, height: 32, type: "text", align: "center", fontSize: 30, maxLength: 50 },
+  { id: "assinaturaComprador", label: "Assinatura do comprador", x: 995, y: 2146, width: 490, height: 32, type: "text", align: "center", fontSize: 30, maxLength: 50 },
 ];
 
 export const FIELD_DEFINITIONS: FieldDefinition[] = [
