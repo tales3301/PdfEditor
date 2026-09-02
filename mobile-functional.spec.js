@@ -8,6 +8,16 @@ test('fluxos principais funcionam no mobile', async ({ page }) => {
   await page.getByRole('button', { name: 'Entrar no sistema' }).click();
   await expect(page.locator('canvas')).toBeVisible();
   await page.waitForFunction(() => document.querySelector('canvas')?.width > 0);
+  await expect.poll(() => page.locator('canvas').evaluate((canvas) => {
+    const context = canvas.getContext('2d');
+    if (!context) return 0;
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let nonWhite = 0;
+    for (let index = 0; index < pixels.length; index += 400) {
+      if (pixels[index] < 245 || pixels[index + 1] < 245 || pixels[index + 2] < 245) nonWhite++;
+    }
+    return nonWhite;
+  })).toBeGreaterThan(100);
 
   const actionButtons = page.locator('header .actions > button');
   await expect(actionButtons).toHaveCount(7);

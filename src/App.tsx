@@ -185,8 +185,13 @@ export default function App() {
       const doc = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
       const page = await doc.getPage(1), base = page.getViewport({ scale: 1 });
       const viewport = page.getViewport({ scale: 850 / base.width, rotation: page.rotate });
-      const canvas = canvasRef.current!, ratio = devicePixelRatio || 1;
-      canvas.width = viewport.width * ratio; canvas.height = viewport.height * ratio;
+      const canvas = canvasRef.current!;
+      // O Safari do iPhone pode descartar canvases muito grandes quando o PDF e a
+      // cópia usada no tratamento da tabela ficam simultaneamente na memória.
+      // Limitamos apenas a resolução interna; o tamanho visual permanece idêntico.
+      const ratio = Math.min(window.devicePixelRatio || 1, window.innerWidth <= 700 ? 1.5 : 2);
+      canvas.width = Math.round(viewport.width * ratio);
+      canvas.height = Math.round(viewport.height * ratio);
       canvas.style.width = `${viewport.width}px`; canvas.style.height = `${viewport.height}px`;
       await page.render({ canvas, canvasContext: canvas.getContext("2d")!, viewport, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined, background: "#ffffff" }).promise;
       const originalTable = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
