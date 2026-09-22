@@ -31,6 +31,12 @@ function formatNumberBR(value: string) {
 function formatCurrency(value: number) {
   return `R$ ${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}`;
 }
+function parsePedidoNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return null;
+  const number = Number(digits);
+  return Number.isSafeInteger(number) ? number : null;
+}
 function fittedFontSize(field: FieldDefinition, value: string, override?: number) {
   const preferred = override ?? field.fontSize;
   if (!value) return preferred;
@@ -313,6 +319,13 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a"); anchor.href = url; anchor.download = fileName("pdf"); anchor.click(); URL.revokeObjectURL(url);
       addToHistory();
+      const pedidoAtual = parsePedidoNumber(values.pedido ?? "");
+      if (pedidoAtual !== null) {
+        const pedidoSeguinte = String(pedidoAtual + 1);
+        const nextValues = { ...values, pedido: pedidoSeguinte };
+        setValues(nextValues);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, values: nextValues, styles, manualTotals: [...manualTotals], manualGeneral }));
+      }
       notify("PDF exportado com todos os campos!");
     } catch { notify("Não foi possível salvar o PDF."); }
   };
