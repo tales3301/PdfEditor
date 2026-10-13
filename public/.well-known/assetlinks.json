@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "br.com.plasnorte.pedidos",
+        "sha256_cert_fingerprints": ["48:1A:59:0F:D5:F0:5D:74:BB:AB:C4:A7:64:6D:16:F2:2E:83:E3:E5:71:40:24:EE:C6:75:FC:1C:FC:E6:2D:60"]
+      }
+    }]
