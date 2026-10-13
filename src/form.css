@@ -83,8 +83,11 @@
   }
 
   .fixed-form {
-    min-width: 620px;
     max-width: none;
+  }
+
+  .zoom-controls {
+    display: none;
   }
 
   .document-field {

@@ -146,7 +146,9 @@ export default function App() {
   const [history, setHistory] = useState<SavedOrder[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
-  const [zoom, setZoom] = useState(() => window.innerWidth <= 700 ? .75 : 1);
+  const [zoom, setZoom] = useState(1);
+  const [mobile, setMobile] = useState(() => window.innerWidth <= 700);
+  const [editing, setEditing] = useState(false);
   const hydrated = useRef(false);
   const importRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -206,6 +208,20 @@ export default function App() {
       restoreOriginalTableDividers(canvas, originalTable);
     })().catch(() => notify("Não foi possível abrir o PDF."));
   }, []);
+
+  useEffect(() => {
+    const onResize = () => setMobile(window.innerWidth <= 700);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // No celular, ao tocar num campo o pedido aumenta e o campo vem para o centro,
+  // depois que o teclado termina de abrir.
+  useEffect(() => {
+    if (!mobile || !editing || !selected) return;
+    const timer = window.setTimeout(() => document.getElementById(`field-${selected}`)?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" }), 300);
+    return () => window.clearTimeout(timer);
+  }, [mobile, editing, selected]);
 
   const updateGrandTotal = (next: Values) => {
     if (manualGeneral) return next;
@@ -443,13 +459,13 @@ export default function App() {
             <button className="side-action" onClick={() => importRef.current?.click()}><Upload /> Importar planilha</button>
             <input ref={importRef} className="file-input" type="file" accept=".xlsx,.csv" onChange={(event) => void importSpreadsheet(event.target.files?.[0])} />
           </aside>
-          <div className="paper-shell"><div className="paper fixed-form" style={{ width: `${850 * zoom}px` }}><canvas ref={canvasRef} /><div className="field-layer">
+          <div className="paper-shell"><div className="paper fixed-form" style={{ width: mobile && !editing ? "100%" : `${850 * zoom}px` }}><canvas ref={canvasRef} /><div className="field-layer">
           {renderedFields.map((field) => {
             const value = values[field.id] ?? "";
             const fontSize = fittedFontSize(field, value, styles[field.id]?.fontSize);
             const productField = field.row !== undefined;
             const signatureField = field.id === "assinaturaVendedor" || field.id === "assinaturaComprador";
-            return <input key={field.id} id={`field-${field.id}`} className={`document-field ${field.section === "client" ? "client-field" : ""} ${productField ? "product-field" : ""} ${productField && field.column === "descricao" ? "description-field" : ""} ${signatureField ? "signature-field" : ""} ${selected === field.id ? "selected" : ""}`} dir={field.section === "client" ? "ltr" : undefined} aria-label={field.label ?? field.id} inputMode={field.type === "text" ? "text" : "decimal"} maxLength={field.maxLength} value={value} onFocus={() => setSelected(field.id)} onChange={(event) => changeValue(field, event.target.value)} onBlur={() => blurField(field)} style={{ left: `${field.x / DOCUMENT_WIDTH * 100}%`, top: `${field.y / DOCUMENT_HEIGHT * 100}%`, width: `${field.width / DOCUMENT_WIDTH * 100}%`, height: `${field.height / DOCUMENT_HEIGHT * 100}%`, textAlign: field.align, fontSize: `${fontSize / DOCUMENT_WIDTH * 100}cqw`, color: styles[field.id]?.color ?? (productField ? "#343b41" : "#214b94") }} />;
+            return <input key={field.id} id={`field-${field.id}`} className={`document-field ${field.section === "client" ? "client-field" : ""} ${productField ? "product-field" : ""} ${productField && field.column === "descricao" ? "description-field" : ""} ${signatureField ? "signature-field" : ""} ${selected === field.id ? "selected" : ""}`} dir={field.section === "client" ? "ltr" : undefined} aria-label={field.label ?? field.id} inputMode={field.type === "text" ? "text" : "decimal"} maxLength={field.maxLength} value={value} onFocus={() => { setSelected(field.id); setEditing(true); }} onChange={(event) => changeValue(field, event.target.value)} onBlur={() => { blurField(field); setEditing(false); }} style={{ left: `${field.x / DOCUMENT_WIDTH * 100}%`, top: `${field.y / DOCUMENT_HEIGHT * 100}%`, width: `${field.width / DOCUMENT_WIDTH * 100}%`, height: `${field.height / DOCUMENT_HEIGHT * 100}%`, textAlign: field.align, fontSize: `${fontSize / DOCUMENT_WIDTH * 100}cqw`, color: styles[field.id]?.color ?? (productField ? "#343b41" : "#214b94") }} />;
           })}
           </div></div></div>
           <aside className="side-panel shortcuts-panel">
@@ -465,7 +481,7 @@ export default function App() {
           </aside>
         </div>
       </section>
-      {active && <div className="floating"><span>Tamanho</span><button disabled={(activeStyle.fontSize ?? active.fontSize) <= activeMinSize} onClick={() => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], fontSize: Math.max(activeMinSize, (activeStyle.fontSize ?? active.fontSize) - 1) } }))}><Minus /></button><b>{activeStyle.fontSize ?? active.fontSize}</b><button disabled={(activeStyle.fontSize ?? active.fontSize) >= activeMaxSize} onClick={() => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], fontSize: Math.min(activeMaxSize, (activeStyle.fontSize ?? active.fontSize) + 1) } }))}><Plus /></button><i /><span>Cor</span><input type="color" value={activeStyle.color ?? "#214b94"} onChange={(event) => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], color: event.target.value } }))} /><i /><button className="delete" onClick={() => changeValue(active, "")}><Trash2 /> Excluir</button></div>}
+      {active && <div className="floating" onMouseDown={(event) => { if ((event.target as HTMLElement).closest("button")) event.preventDefault(); }}><span>Tamanho</span><button disabled={(activeStyle.fontSize ?? active.fontSize) <= activeMinSize} onClick={() => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], fontSize: Math.max(activeMinSize, (activeStyle.fontSize ?? active.fontSize) - 1) } }))}><Minus /></button><b>{activeStyle.fontSize ?? active.fontSize}</b><button disabled={(activeStyle.fontSize ?? active.fontSize) >= activeMaxSize} onClick={() => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], fontSize: Math.min(activeMaxSize, (activeStyle.fontSize ?? active.fontSize) + 1) } }))}><Plus /></button><i /><span>Cor</span><input type="color" value={activeStyle.color ?? "#214b94"} onChange={(event) => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], color: event.target.value } }))} /><i /><button className="delete" onClick={() => changeValue(active, "")}><Trash2 /> Excluir</button></div>}
       {confirmAction && <div className="modal-backdrop" role="presentation" onMouseDown={() => setConfirmAction(null)}>
         <div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="clear-title" onMouseDown={(event) => event.stopPropagation()}>
           <div className="confirm-icon">{confirmAction === "new" ? <FilePlus2 /> : <Trash2 />}</div>
