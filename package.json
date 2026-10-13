@@ -1,1 +1,28 @@
-{"name":"plasnorte-pedidos","private":true,"version":"1.0.0","type":"module","scripts":{"dev":"vite","build":"tsc -b && vite build"},"dependencies":{"@vitejs/plugin-react":"latest","fflate":"^0.8.3","lucide-react":"latest","pdf-lib":"latest","pdfjs-dist":"latest","react":"latest","react-dom":"latest","vite":"latest"},"devDependencies":{"@playwright/test":"^1.62.1","@types/react":"latest","@types/react-dom":"latest","typescript":"latest"}}
+{
+  "name": "plasnorte-pedidos",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "fflate": "^0.8.3",
+    "lucide-react": "latest",
+    "pdf-lib": "latest",
+    "pdfjs-dist": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest",
+    "vite-plugin-pwa": "^2.0.0"
+  }
+}
