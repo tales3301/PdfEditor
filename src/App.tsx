@@ -37,6 +37,27 @@ function parsePedidoNumber(value: string) {
   const number = Number(digits);
   return Number.isSafeInteger(number) ? number : null;
 }
+function formatCpfCnpj(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (!digits) return "";
+
+  const isCnpj = digits.length > 11 || value.includes("/");
+  if (isCnpj) {
+    let formatted = digits.slice(0, 2);
+    if (digits.length > 2) formatted += `.${digits.slice(2, 5)}`;
+    if (digits.length > 5) formatted += `.${digits.slice(5, 8)}`;
+    if (digits.length > 8) formatted += `/${digits.slice(8, 12)}`;
+    else if (value.includes("/") && digits.length === 8) formatted += "/";
+    if (digits.length > 12) formatted += `-${digits.slice(12, 14)}`;
+    return formatted;
+  }
+
+  let formatted = digits.slice(0, 3);
+  if (digits.length > 3) formatted += `.${digits.slice(3, 6)}`;
+  if (digits.length > 6) formatted += `.${digits.slice(6, 9)}`;
+  if (digits.length > 9) formatted += `-${digits.slice(9, 11)}`;
+  return formatted;
+}
 function fittedFontSize(field: FieldDefinition, value: string, override?: number) {
   const preferred = override ?? field.fontSize;
   if (!value) return preferred;
@@ -165,7 +186,7 @@ export default function App() {
       else {
         const savedValues = draft.values ?? {};
         const isMockOrder = savedValues.pedido === "10428" && savedValues.cliente === "Mercado Modelo Ltda.";
-        setValues(isMockOrder ? {} : savedValues);
+        setValues(isMockOrder ? {} : { ...savedValues, cnpjCpf: formatCpfCnpj(savedValues.cnpjCpf ?? "") });
         setStyles(draft.styles ?? {});
         setManualTotals(new Set(isMockOrder ? [] : draft.manualTotals ?? []));
         setManualGeneral(isMockOrder ? false : Boolean(draft.manualGeneral));
@@ -234,6 +255,7 @@ export default function App() {
   };
 
   const changeValue = (field: FieldDefinition, value: string) => {
+    if (field.id === "cnpjCpf") value = formatCpfCnpj(value);
     if (field.type !== "text" && !/^[\s\d.,R$+\-]*$/.test(value)) return;
     if (field.column === "valorTotal" && field.row !== undefined) {
       setManualTotals((current) => { const next = new Set(current); value ? next.add(field.row!) : next.delete(field.row!); return next; });
@@ -282,7 +304,7 @@ export default function App() {
     notify(wasNew ? "Novo pedido iniciado." : "Todos os campos foram limpos.");
   };
   const restoreOrder = (order: SavedOrder) => {
-    setValues(order.values); setStyles(order.styles); setManualTotals(new Set(order.manualTotals)); setManualGeneral(order.manualGeneral); setHistoryOpen(false);
+    setValues({ ...order.values, cnpjCpf: formatCpfCnpj(order.values.cnpjCpf ?? "") }); setStyles(order.styles); setManualTotals(new Set(order.manualTotals)); setManualGeneral(order.manualGeneral); setHistoryOpen(false);
     notify("Pedido restaurado do histórico.");
   };
   const fileName = (extension: "pdf" | "xlsx") => {
@@ -422,6 +444,7 @@ export default function App() {
       let importedTotal = 0;
       for (let row = 0; row < 36; row++) importedTotal += parseNumberBR(next[productFieldId(row, "valorTotal")] ?? "") ?? 0;
       next.totalGeral = importedTotal ? formatCurrency(importedTotal) : next.totalGeral ?? "";
+      next.cnpjCpf = formatCpfCnpj(next.cnpjCpf ?? "");
       setManualTotals(importedManual); setManualGeneral(false); setValues(next);
       notify("Planilha importada com sucesso!");
     } catch { notify("Não foi possível importar esta planilha."); }
@@ -465,7 +488,7 @@ export default function App() {
             const fontSize = fittedFontSize(field, value, styles[field.id]?.fontSize);
             const productField = field.row !== undefined;
             const signatureField = field.id === "assinaturaVendedor" || field.id === "assinaturaComprador";
-            return <input key={field.id} id={`field-${field.id}`} className={`document-field ${field.section === "client" ? "client-field" : ""} ${productField ? "product-field" : ""} ${productField && field.column === "descricao" ? "description-field" : ""} ${signatureField ? "signature-field" : ""} ${selected === field.id ? "selected" : ""}`} dir={field.section === "client" ? "ltr" : undefined} aria-label={field.label ?? field.id} inputMode={field.type === "text" ? "text" : "decimal"} maxLength={field.maxLength} value={value} onFocus={() => { setSelected(field.id); setEditing(true); }} onChange={(event) => changeValue(field, event.target.value)} onBlur={() => { blurField(field); setEditing(false); }} style={{ left: `${field.x / DOCUMENT_WIDTH * 100}%`, top: `${field.y / DOCUMENT_HEIGHT * 100}%`, width: `${field.width / DOCUMENT_WIDTH * 100}%`, height: `${field.height / DOCUMENT_HEIGHT * 100}%`, textAlign: field.align, fontSize: `${fontSize / DOCUMENT_WIDTH * 100}cqw`, color: styles[field.id]?.color ?? (productField ? "#343b41" : "#214b94") }} />;
+            return <input key={field.id} id={`field-${field.id}`} className={`document-field ${field.section === "client" ? "client-field" : ""} ${productField ? "product-field" : ""} ${productField && field.column === "descricao" ? "description-field" : ""} ${signatureField ? "signature-field" : ""} ${selected === field.id ? "selected" : ""}`} dir={field.section === "client" ? "ltr" : undefined} aria-label={field.label ?? field.id} inputMode={field.id === "cnpjCpf" ? "numeric" : field.type === "text" ? "text" : "decimal"} maxLength={field.id === "cnpjCpf" ? undefined : field.maxLength} value={value} onFocus={() => { setSelected(field.id); setEditing(true); }} onChange={(event) => changeValue(field, event.target.value)} onBlur={() => { blurField(field); setEditing(false); }} style={{ left: `${field.x / DOCUMENT_WIDTH * 100}%`, top: `${field.y / DOCUMENT_HEIGHT * 100}%`, width: `${field.width / DOCUMENT_WIDTH * 100}%`, height: `${field.height / DOCUMENT_HEIGHT * 100}%`, textAlign: field.align, fontSize: `${fontSize / DOCUMENT_WIDTH * 100}cqw`, color: styles[field.id]?.color ?? (productField ? "#343b41" : "#214b94") }} />;
           })}
           </div></div></div>
           <aside className="side-panel shortcuts-panel">
