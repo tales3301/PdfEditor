@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { Clock3, Download, FilePlus2, FileSpreadsheet, History, MessageCircle, Minus, Plus, RotateCcw, Save, Trash2, Type, Upload, ZoomIn, ZoomOut } from "lucide-react";
+import { Clock3, Download, FilePlus2, FileSpreadsheet, History, LogOut, MessageCircle, Minus, Plus, RotateCcw, Save, Trash2, Type, Upload, ZoomIn, ZoomOut } from "lucide-react";
 import { DOCUMENT_HEIGHT, DOCUMENT_WIDTH, FIELD_BY_ID, FIELD_DEFINITIONS, FieldDefinition, productFieldId } from "./fieldConfig";
 import { createExcelFile, DEFAULT_PRODUCTS, readSpreadsheet } from "./excel";
 
@@ -155,7 +155,7 @@ function restoreOriginalTableDividers(canvas: HTMLCanvasElement, original: Image
   context.restore();
 }
 
-export default function App() {
+export default function App({ onLogout }: { onLogout: () => void }) {
   const [values, setValues] = useState<Values>({});
   const [styles, setStyles] = useState<FieldStyles>({});
   const [manualTotals, setManualTotals] = useState<Set<number>>(new Set());
@@ -166,6 +166,7 @@ export default function App() {
   const [pendingExport, setPendingExport] = useState<ExportKind | null>(null);
   const [history, setHistory] = useState<SavedOrder[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const [zoom, setZoom] = useState(1);
   const [mobile, setMobile] = useState(() => window.innerWidth <= 700);
@@ -503,6 +504,7 @@ export default function App() {
             <div className="side-tip"><Type /><span>Clique em qualquer campo destacado para começar a editar.</span></div>
           </aside>
         </div>
+        <div className="session-actions"><button onClick={() => setLogoutOpen(true)}><LogOut /> Sair</button></div>
       </section>
       {active && <div className="floating" onMouseDown={(event) => { if ((event.target as HTMLElement).closest("button")) event.preventDefault(); }}><span>Tamanho</span><button disabled={(activeStyle.fontSize ?? active.fontSize) <= activeMinSize} onClick={() => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], fontSize: Math.max(activeMinSize, (activeStyle.fontSize ?? active.fontSize) - 1) } }))}><Minus /></button><b>{activeStyle.fontSize ?? active.fontSize}</b><button disabled={(activeStyle.fontSize ?? active.fontSize) >= activeMaxSize} onClick={() => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], fontSize: Math.min(activeMaxSize, (activeStyle.fontSize ?? active.fontSize) + 1) } }))}><Plus /></button><i /><span>Cor</span><input type="color" value={activeStyle.color ?? "#214b94"} onChange={(event) => setStyles((current) => ({ ...current, [active.id]: { ...current[active.id], color: event.target.value } }))} /><i /><button className="delete" onClick={() => changeValue(active, "")}><Trash2 /> Excluir</button></div>}
       {confirmAction && <div className="modal-backdrop" role="presentation" onMouseDown={() => setConfirmAction(null)}>
@@ -523,6 +525,13 @@ export default function App() {
         <div className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title" onMouseDown={(event) => event.stopPropagation()}>
           <div className="history-heading"><div><span className="side-kicker">PEDIDOS SALVOS</span><h2 id="history-title">Histórico</h2></div><div className="history-heading-actions"><button className="history-import" onClick={() => { setHistoryOpen(false); window.setTimeout(() => importRef.current?.click(), 100); }}><Upload /> Importar</button><button onClick={() => setHistoryOpen(false)} aria-label="Fechar">×</button></div></div>
           <div className="history-list">{history.length ? history.map((order) => <button key={order.id} onClick={() => restoreOrder(order)}><span className="history-icon"><Clock3 /></span><div><b>{order.values.cliente || "Cliente não informado"}</b><small>Pedido {order.values.pedido || "sem número"} · {new Date(order.savedAt).toLocaleString("pt-BR")}</small></div><strong>Restaurar</strong></button>) : <div className="history-empty"><History /><b>Nenhum pedido salvo</b><span>Use o botão Salvar para criar seu histórico.</span></div>}</div>
+        </div>
+      </div>}
+      {logoutOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setLogoutOpen(false)}>
+        <div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logout-title" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="confirm-icon"><LogOut /></div>
+          <div className="confirm-copy"><h2 id="logout-title">Deseja realmente sair?</h2><p>Você voltará para a tela de acesso. Seu rascunho continuará salvo neste navegador.</p></div>
+          <div className="confirm-actions"><button onClick={() => setLogoutOpen(false)}>Cancelar</button><button className="confirm-danger" onClick={onLogout}><LogOut /> Sim, sair</button></div>
         </div>
       </div>}
       {toast && <div className="toast">{toast}</div>}

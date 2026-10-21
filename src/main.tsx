@@ -1,6 +1,6 @@
-import { type FormEvent, type ReactNode, useState } from 'react'
+import { type FormEvent, useState } from 'react'
 import ReactDOM from 'react-dom/client'
-import { LockKeyhole } from 'lucide-react'
+import { Eye, EyeOff, LockKeyhole } from 'lucide-react'
 import App from './App'
 import './styles.css'
 import './override.css'
@@ -9,9 +9,10 @@ import './form.css'
 const ACCESS_KEY = 'plasnorte-acesso-autorizado'
 const ACCESS_PASSWORD = '2026Plasnorte2026'
 
-function AccessGate({ children }: { children: ReactNode }) {
+function AccessGate() {
   const [authorized, setAuthorized] = useState(() => sessionStorage.getItem(ACCESS_KEY) === 'true')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
 
   const submit = (event: FormEvent) => {
@@ -25,7 +26,15 @@ function AccessGate({ children }: { children: ReactNode }) {
     setAuthorized(true)
   }
 
-  if (authorized) return children
+  const logout = () => {
+    sessionStorage.removeItem(ACCESS_KEY)
+    setAuthorized(false)
+    setPassword('')
+    setShowPassword(false)
+    setError('')
+  }
+
+  if (authorized) return <App onLogout={logout} />
 
   return <main className="login-page">
     <section className="login-card" aria-labelledby="login-title">
@@ -36,13 +45,16 @@ function AccessGate({ children }: { children: ReactNode }) {
       <p>Digite a senha para acessar o sistema PlasNorte.</p>
       <form onSubmit={submit}>
         <label htmlFor="access-password">Senha de acesso</label>
-        <input id="access-password" type="password" autoComplete="current-password" autoFocus value={password} onChange={(event) => { setPassword(event.target.value); setError('') }} placeholder="Digite sua senha" aria-invalid={Boolean(error)} />
+        <div className="password-field">
+          <input id="access-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" autoFocus value={password} onChange={(event) => { setPassword(event.target.value); setError('') }} placeholder="Digite sua senha" aria-invalid={Boolean(error)} />
+          <button className="password-toggle" type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={showPassword} title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>{showPassword ? <EyeOff /> : <Eye />}</button>
+        </div>
         {error && <div className="login-error" role="alert">{error}</div>}
-        <button type="submit" disabled={!password}><LockKeyhole /> Entrar no sistema</button>
+        <button className="login-submit" type="submit" disabled={!password}><LockKeyhole /> Entrar no sistema</button>
       </form>
       <small>PlasNorte Embalagens · Ambiente seguro</small>
     </section>
   </main>
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<AccessGate><App /></AccessGate>)
+ReactDOM.createRoot(document.getElementById('root')!).render(<AccessGate />)
